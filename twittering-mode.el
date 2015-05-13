@@ -5422,6 +5422,14 @@ Return nil if URL-STRING cannot be interpreted as a URL pointing a tweet."
 	 url-string)
     (match-string 1 url-string)))
 
+(defun twittering-extract-username-and-id-from-url (url-string)
+  "Extract the USERNAME from URL-STRING.
+Return nil if URL-STRING cannot be interpreted as a URL pointing a tweet."
+  (when (string-match
+	 "\\`https?://twitter.com/\\(?:#!/\\)?\\([^/]+\\)/status\\(?:es\\)?/\\([0-9]+\\)/?\\'"
+	 url-string)
+    (cons (match-string 1 url-string) (match-string 2 url-string))))
+
 ;;;;
 ;;;; Utility of status IDs
 ;;;;
@@ -9568,6 +9576,7 @@ This function returns a list of the statuses newly rendered by the invocation."
 				    (point)
 				    (twittering-make-field-id status)
 				    (twittering-format-status status))
+			       (twittering-show-linked-statuses status) ; twitlink
 			       (when twittering-default-show-replied-tweets
 				 (twittering-show-replied-statuses
 				  twittering-default-show-replied-tweets))
@@ -9948,11 +9957,11 @@ Return nil if no statuses are rendered."
   "Render a status with a delay.
 It is assumed that this function is used as a property value that is
 processed by the function `twittering-redisplay-status-on-each-buffer'."
-  (let ((status (twittering-find-status id)))
-    (when status
-      (let ((properties (and beg (text-properties-at beg))))
-	(apply 'propertize (twittering-format-status status prefix)
-	       properties)))))
+  (let ((status (twittering-find-status id))
+	(properties (and beg (text-properties-at beg))))
+    (if status
+	(apply 'propertize (twittering-format-status status prefix) properties)
+      (apply 'propertize (concat prefix "[RETRIEVING...(Pending)]") `(,@properties need-to-be-updated (twittering-render-a-status-with-delay ,id ,prefix))))))
 
 (defun twittering-toggle-or-retrieve-replied-statuses ()
   "Show/Hide all of replied statuses or retrieve a replied status.
@@ -10030,6 +10039,65 @@ all of ancestor replied statuses have been already rendered, hide them by
      (t
       ;; The pointed status is not a reply.
       (message "This status is not a reply.")))))
+
+;; twitlink
+(defun twittering-show-status-by-url (url)
+  (let ((match (twittering-extract-username-and-id-from-url url)))
+    (if match
+	(let* ((id (cdr match))
+	       (username (car match))
+	       (status (twittering-find-status id))
+	       (pos
+		;; POS points to the position where the new field will be
+		;; inserted.
+		(if twittering-reverse-mode
+		    (point)
+		  (or (twittering-get-next-status-head (point))
+		      (point-max))))
+	       (prefix " |")
+	       (label "[RETRIEVING...]")
+	       (properties nil))
+	  (cond
+	   (status
+	    (twittering-render-a-field (point) (twittering-make-field-id-from-id id) (twittering-format-status status prefix)))
+	   (t
+	    (if (and id username)
+	      (twittering-delayed-retrieve-status id username pos prefix label properties))))))))
+
+;; twitlink
+(defun twittering-show-linked-statuses (status)
+  (let* ((entities (cdr (assq 'entity status)))
+	 (urls (cdr (assq 'urls entities))))
+    (mapc (lambda (url-info)
+	    (let* ((url (cdr (assq 'url url-info)))
+		   (expanded-url (cdr (assq 'expanded-url url-info))))
+	      (twittering-show-status-by-url (or expanded-url url))))
+	  urls)
+))
+
+;; twitlink
+(defun twittering-delayed-retrieve-status (id username pos prefix label properties)
+  (let* ((symbol-for-redisplay 'waiting-for-retrieval)
+	 (properties
+	  `(,@properties
+	    ,symbol-for-redisplay 
+	    (twittering-render-a-status-with-delay
+	     ,id
+	     ,prefix)))
+	 (str (apply 'propertize (concat prefix label) properties))
+	 (field-id (twittering-make-field-id-from-id id))
+	 (buffer-read-only nil))
+    (twittering-call-api 'retrieve-single-tweet
+			 `((id . ,id)
+			   (username . ,username)
+			   (format . ,(when (require 'json nil t)
+					'json))
+			   (sentinel . twittering-retrieve-single-tweet-sentinel))
+			 `((buffer . ,(current-buffer))
+			   (property-to-be-redisplayed . ,symbol-for-redisplay)))
+    (save-excursion (goto-char pos)
+		    (twittering-render-a-field (point) field-id str))
+    (goto-char pos)))
 
 (defun twittering-show-replied-statuses (&optional count interactive)
   (interactive)
