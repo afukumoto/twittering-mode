@@ -8945,7 +8945,12 @@ following symbols;
 			 (substring text (min (+ offset end) text-length))))
 		  (setq offset
 			(+ offset (- (length expanded-url) (- end start))))))
-	      (cdr (assq 'urls entities))))
+	      (sort
+	       (append (cdr (assq 'urls entities))
+		       (cdr (assq 'media entities)))
+	       (lambda (a b)
+		 (< (cdr (assq 'start a))
+		    (cdr (assq 'start b)))))))
       text)))
 
 (defun twittering-generate-format-table (status-sym prefix-sym)
