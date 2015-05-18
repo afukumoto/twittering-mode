@@ -451,6 +451,9 @@ Do not modify this variable directly. Use `twittering-activate-buffer',
   :type 'boolean
   :group 'twittering-mode)
 
+(defvar twittering-prefer-display-url nil
+  "*If non-nil, use display-url in the displayed text.  Otherwise use expanded-url.")
+
 (defcustom twittering-status-format "%i %s,  %@:\n%FILL[  ]{%T // from %f%L%r%R}\n "
   "Format string for rendering statuses.
 Ex. \"%i %s,  %@:\\n%FILL{  %T // from %f%L%r%R}\n \"
@@ -8927,9 +8930,13 @@ following symbols;
 			;; `expanded-url' is nil.
 			(or (cdr (assq 'expanded-url url-info))
 			    url))
+		       (display-url
+			 (or (if twittering-prefer-display-url
+				 (cdr (assq 'display-url url-info)))
+			     expanded-url))
 		       (replacement
 			(propertize
-			 expanded-url
+			 display-url
 			 'mouse-face 'highlight
 			 'keymap twittering-mode-on-uri-map
 			 'uri url
@@ -8944,7 +8951,7 @@ following symbols;
 			 replacement
 			 (substring text (min (+ offset end) text-length))))
 		  (setq offset
-			(+ offset (- (length expanded-url) (- end start))))))
+			(+ offset (- (length display-url) (- end start))))))
 	      (sort
 	       (append (cdr (assq 'urls entities))
 		       (cdr (assq 'media entities)))
