@@ -7573,7 +7573,9 @@ to JSON objects from ordinary timeline and search timeline."
 	 (urls (cdr (assq 'urls entities)))
 	 (hashtags (cdr (assq 'hashtags entities)))
 	 (mentions (cdr (assq 'user_mentions entities)))
-	 (media (cdr (assq 'media entities)))
+	 (extended-entities (cdr (assq 'extended_entities json-object)))
+	 (media (or (cdr (assq 'media extended-entities))
+		    (cdr (assq 'media entities))))
 	 (func
 	  (lambda (entry sym-table)
 	    (mapcar (lambda (sym-entry)
@@ -8875,6 +8877,18 @@ following symbols;
 	   (setq pos end)))
        str)))
 
+(defun twittering-remove-overlapping-entities (lst)
+  (let ((item1 (car lst))
+	(rest (cdr lst)))
+    (if rest
+	(let* ((item2 (car rest))
+	       (start1 (cdr (assq 'start item1)))
+	       (start2 (cdr (assq 'start item2))))
+	  (if (equal start1 start2)
+	      (twittering-remove-overlapping-entities (cons item1 (cdr rest)))
+	    (cons item1 (twittering-remove-overlapping-entities rest))))
+      lst)))
+
 (eval-and-compile
   (defsubst twittering-make-fontified-tweet-text-with-entity (status)
     (let* ((text (copy-sequence (cdr (assq 'text status))))
@@ -8952,12 +8966,13 @@ following symbols;
 			 (substring text (min (+ offset end) text-length))))
 		  (setq offset
 			(+ offset (- (length display-url) (- end start))))))
-	      (sort
-	       (append (cdr (assq 'urls entities))
-		       (cdr (assq 'media entities)))
-	       (lambda (a b)
-		 (< (cdr (assq 'start a))
-		    (cdr (assq 'start b)))))))
+	      (twittering-remove-overlapping-entities
+	       (sort
+		(append (cdr (assq 'urls entities))
+			(cdr (assq 'media entities)))
+		(lambda (a b)
+		  (< (cdr (assq 'start a))
+		     (cdr (assq 'start b))))))))
       text)))
 
 (defun twittering-generate-format-table (status-sym prefix-sym)
