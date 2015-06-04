@@ -8883,8 +8883,10 @@ following symbols;
     (if rest
 	(let* ((item2 (car rest))
 	       (start1 (cdr (assq 'start item1)))
-	       (start2 (cdr (assq 'start item2))))
-	  (if (equal start1 start2)
+	       (end1 (cdr (assq 'end item1)))
+	       (start2 (cdr (assq 'start item2)))
+	       (end2 (cdr (assq 'end item2))))
+	  (if (<= start2 end1)
 	      (twittering-remove-overlapping-entities (cons item1 (cdr rest)))
 	    (cons item1 (twittering-remove-overlapping-entities rest))))
       lst)))
