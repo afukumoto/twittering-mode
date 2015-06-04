@@ -8891,6 +8891,54 @@ following symbols;
 	    (cons item1 (twittering-remove-overlapping-entities rest))))
       lst)))
 
+(defun twittering-text-expand-urls (text url-info-list)
+  (let ((offset 0))
+    (mapc (lambda (url-info)
+	    (let* ((text-length (length text))
+		   (start (cdr (assq 'start url-info)))
+		   (end (cdr (assq 'end url-info)))
+		   (url (cdr (assq 'url url-info)))
+		   (expanded-url
+		    ;; If the `url' is short and not wrapped,
+		    ;; `expanded-url' is nil.
+		    (or (cdr (assq 'expanded-url url-info))
+			url))
+		   (display-url
+		    (or (if twittering-prefer-display-url
+			    (cdr (assq 'display-url url-info)))
+			expanded-url))
+		   (replacement
+		    (propertize
+		     display-url
+		     'mouse-face 'highlight
+		     'keymap twittering-mode-on-uri-map
+		     'uri url
+		     'uri-origin 'explicit-uri-in-tweet
+		     'expanded-uri expanded-url
+		     'face 'twittering-uri-face
+		     'front-sticky nil
+		     'rear-nonsticky t)))
+	      (setq text
+		    (concat
+		     (substring text 0 (min (+ offset start) text-length))
+		     replacement
+		     (substring text (min (+ offset end) text-length))))
+	      (setq offset
+		    (+ offset (- (length display-url) (- end start))))))
+	  url-info-list)
+    text))
+
+(defun twittering-status-text-expand-urls (status)
+  (let ((entities (cdr (assq 'entity status))))
+    (twittering-text-expand-urls (cdr (assq 'text status))
+				 (twittering-remove-overlapping-entities
+				  (sort
+				   (append (cdr (assq 'urls entities))
+					   (cdr (assq 'media entities)))
+				   (lambda (a b)
+				     (< (cdr (assq 'start a))
+					(cdr (assq 'start b)))))))))
+
 (eval-and-compile
   (defsubst twittering-make-fontified-tweet-text-with-entity (status)
     (let* ((text (copy-sequence (cdr (assq 'text status))))
@@ -11749,7 +11797,7 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
   (let* ((id (twittering-get-id-at))
 	 (status (twittering-find-status id))
 	 (username (cdr (assq 'user-screen-name status)))
-	 (text (cdr (assq 'text status)))
+	 (text (twittering-status-text-expand-urls status))
 	 (retweet-time (current-time))
 	 (skeleton-with-format-string
 	  (cond
