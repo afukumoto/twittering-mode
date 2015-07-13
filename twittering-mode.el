@@ -11800,7 +11800,7 @@ Otherwise use `browse-url'."
     (twittering-visit-timeline `(search ,(concat "#" (twittering-percent-decode (match-string 1 expanded-uri))))))
    ((string-match "\\`https?://twitter.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" expanded-uri)
     (twittering-visit-timeline `(list ,(match-string 1 expanded-uri) ,(match-string 2 expanded-uri))))
-   ((string-match "\\`https?://twitter.com/[^/]+/status/\\([0-9]+\\)" expanded-uri)
+   ((string-match "\\`https?://twitter.com/[^/]+/status/\\([0-9]+\\)\\'" expanded-uri)
     (twittering-visit-timeline `(single ,(match-string 1 expanded-uri))))
    ((string-match "\\`https?://twitter.com/\\([^/]+\\)\\'" expanded-uri)
     (twittering-visit-timeline (match-string 1 expanded-uri)))
