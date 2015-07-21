@@ -5421,7 +5421,7 @@ string and the number of new statuses for the timeline."
   "Extract the ID from URL-STRING.
 Return nil if URL-STRING cannot be interpreted as a URL pointing a tweet."
   (when (string-match
-	 "\\`https?://twitter.com/\\(?:#!/\\)?[^/]+/status\\(?:es\\)?/\\([0-9]+\\)/?\\'"
+	 "\\`https?://twitter\\.com/\\(?:#!/\\)?[^/]+/status\\(?:es\\)?/\\([0-9]+\\)/?\\'"
 	 url-string)
     (match-string 1 url-string)))
 
@@ -11796,13 +11796,13 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
 If the URI is a link to twitter.com, visit as a timeline.
 Otherwise use `browse-url'."
   (cond 
-   ((string-match "\\`https?://twitter.com/\\(?:#!/\\)?search\\?q=%23\\([^#]*\\)\\(?:#.*\\)?\\'" expanded-uri)
+   ((string-match "\\`https?://twitter\\.com/\\(?:#!/\\)?search\\?q=%23\\([^#]*\\)\\(?:#.*\\)?\\'" expanded-uri)
     (twittering-visit-timeline `(search ,(concat "#" (twittering-percent-decode (match-string 1 expanded-uri))))))
-   ((string-match "\\`https?://twitter.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" expanded-uri)
+   ((string-match "\\`https?://twitter\\.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" expanded-uri)
     (twittering-visit-timeline `(list ,(match-string 1 expanded-uri) ,(match-string 2 expanded-uri))))
-   ((string-match "\\`https?://twitter.com/[^/]+/status/\\([0-9]+\\)\\(?:\\?.*\\)?\\(?:#.*\\)?\\'" expanded-uri)
+   ((string-match "\\`https?://twitter\\.com/[^/]+/status/\\([0-9]+\\)\\(?:\\?.*\\)?\\(?:#.*\\)?\\'" expanded-uri)
     (twittering-visit-timeline `(single ,(match-string 1 expanded-uri))))
-   ((string-match "\\`https?://twitter.com/\\([^/]+\\)\\'" expanded-uri)
+   ((string-match "\\`https?://twitter\\.com/\\([^/]+\\)\\'" expanded-uri)
     (twittering-visit-timeline (match-string 1 expanded-uri)))
    (t
     (browse-url uri))))
