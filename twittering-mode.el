@@ -7522,14 +7522,11 @@ references. This function decodes them."
      encoded-str))
    (t
     (replace-regexp-in-string
-     "&\\(?:\\(gt\\)\\|\\(lt\\)\\|\\(amp\\)\\);"
+     "&\\(?:\\(gt\\)\\|\\(lt\\)\\);"
      (lambda (str)
-       (cond ((match-beginning 1)
-	      "<")
-	     ((match-beginning 2)
-	      ">")
-	     (t
-	      "&")))
+       (if (match-beginning 1)
+	   ">"
+	 "<"))
      encoded-str))))
 
 (defun twittering-decode-html-entities (encoded-str)
