@@ -7241,15 +7241,16 @@ text."
     (let ((result nil)
 	  (regexp
 	   (if (require 'ucs-normalize nil t)
-	       (concat "\\(?:\\([<>]\\)\\|\\("
+	       (concat "\\(?:\\([<>]\\)\\|\\(&\\)\\|\\("
 		       ucs-normalize-combining-chars-regexp "\\)\\)")
-	     "\\([<>]\\)"))
+	     "\\(?:\\([<>]\\)\\|\\(&\\)\\)"))
 	  (pos 0)
 	  (gap 0))
       (while (string-match regexp text pos)
-	(let ((shift (if (match-beginning 1)
-			 3
-		       1)))
+	(let ((shift (cond 
+		      ((match-beginning 1) 3)
+		      ((match-beginning 2) 4)
+		      (t 1))))
 	  (setq result
 		(cons `(,(+ gap (match-end 0)) . ,(+ gap shift)) result))
 	  (setq gap (+ shift gap)))
@@ -7522,11 +7523,14 @@ references. This function decodes them."
      encoded-str))
    (t
     (replace-regexp-in-string
-     "&\\(?:\\(gt\\)\\|\\(lt\\)\\);"
+     "&\\(?:\\(gt\\)\\|\\(lt\\)\\|\\(amp\\)\\);"
      (lambda (str)
-       (if (match-beginning 1)
-	   ">"
-	 "<"))
+       (cond ((match-beginning 1)
+	      "<")
+	     ((match-beginning 2)
+	      ">")
+	     (t
+	      "&")))
      encoded-str))))
 
 (defun twittering-decode-html-entities (encoded-str)
