@@ -451,7 +451,7 @@ Do not modify this variable directly. Use `twittering-activate-buffer',
   :type 'boolean
   :group 'twittering-mode)
 
-(defvar twittering-prefer-display-url nil
+(defvar twittering-prefer-display-url t
   "*If non-nil, use display-url in the displayed text.  Otherwise use expanded-url.")
 
 (defcustom twittering-status-format "%i %s,  %@:\n%FILL[  ]{%T // from %f%L%r%R}\n "
