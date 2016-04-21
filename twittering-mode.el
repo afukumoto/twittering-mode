@@ -12449,7 +12449,8 @@ which fetch older tweets on reverse-mode."
 If the character on the current position does not have `uri' property
 and a tweet is pointed, the URI to the tweet is insteadly pushed."
   (interactive)
-  (let ((uri (or (get-text-property (point) 'uri)
+  (let ((uri (or (get-text-property (point) 'expanded-uri)
+		 (get-text-property (point) 'uri)
 		 (if (get-text-property (point) 'field)
 		     (let* ((id (get-text-property (point) 'id))
 			    (status (twittering-find-status id)))
