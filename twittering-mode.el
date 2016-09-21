@@ -6336,6 +6336,7 @@ get-service-configuration -- Get the configuration of the server.
 	      (let ((username (elt spec 1)))
 		`(,twittering-api-host
 		  "1.1/statuses/user_timeline"
+		  ("tweet_mode" . "extended")
 		  ("count" . ,number-str)
 		  ("include_entities" . "true")
 		  ("include_rts" . "true")
@@ -6348,6 +6349,7 @@ get-service-configuration -- Get the configuration of the server.
 		    (list-name (elt spec 2)))
 		`(,twittering-api-host
 		  "1.1/lists/statuses"
+		  ("tweet_mode" . "extended")
 		  ("count" . ,number-str)
 		  ("include_entities" . "true")
 		  ("include_rts" . "true")
@@ -6373,6 +6375,7 @@ get-service-configuration -- Get the configuration of the server.
 	      (let ((user (elt spec 1)))
 		`(,twittering-api-host
 		  "1.1/favorites/list"
+		  ("tweet_mode" . "extended")
 		  ("count" . ,number-str)
 		  ("include_entities" . "true")
 		  ,@(when max_id `(("max_id" . ,max_id)))
@@ -6381,6 +6384,7 @@ get-service-configuration -- Get the configuration of the server.
 	     ((eq spec-type 'home)
 	      `(,twittering-api-host
 		"1.1/statuses/home_timeline"
+		("tweet_mode" . "extended")
 		("count" . ,number-str)
 		("include_entities" . "true")
 		,@(when max_id `(("max_id" . ,max_id)))
@@ -6388,6 +6392,7 @@ get-service-configuration -- Get the configuration of the server.
 	     ((eq spec-type 'mentions)
 	      `(,twittering-api-host
 		"1.1/statuses/mentions_timeline"
+		("tweet_mode" . "extended")
 		("count" . ,number-str)
 		("include_entities" . "true")
 		,@(when max_id `(("max_id" . ,max_id)))
@@ -6408,6 +6413,7 @@ get-service-configuration -- Get the configuration of the server.
 	     ((eq spec-type 'retweets_of_me)
 	      `(,twittering-api-host
 		"1.1/statuses/retweets_of_me"
+		("tweet_mode" . "extended")
 		("count" . ,number-str)
 		("include_entities" . "true")
 		,@(when max_id `(("max_id" . ,max_id)))
@@ -6416,12 +6422,14 @@ get-service-configuration -- Get the configuration of the server.
 	      (let ((id (elt spec 1)))
 		`(,twittering-api-host
 		  "1.1/statuses/show"
+		  ("tweet_mode" . "extended")
 		  ("id" . ,id)
 		  ("include_entities" . "true"))))
 	     ((eq spec-type 'search)
 	      (let ((word (elt spec 1)))
 		`(,twittering-api-host
 		  "1.1/search/tweets"
+		  ("tweet_mode" . "extended")
 		  ("count" . ,number-str)
 		  ("include_entities" . "true")
 		  ,@(when max_id `(("max_id" . ,max_id)))
@@ -7583,10 +7591,12 @@ references. This function decodes them."
   "Extract common parameters of a tweet from JSON-OBJECT.
 Return an alist including text, created_at and entities, which are common
 to JSON objects from ordinary timeline and search timeline."
-  (let* ((encoded-text (cdr (assq 'text json-object)))
+  (let* ((encoded-text (cdr (or (assq 'full_text json-object)
+				(assq 'text json-object))))
 	 (text
 	  (twittering-decode-html-entities
 	   (twittering-decode-entities-after-parsing-xml encoded-text)))
+	 ;(display-text-range (cdr (assq 'display-text-range json-object)))
 	 (gap-list (twittering-make-gap-list text))
 	 (entities (cdr (assq 'entities json-object)))
 	 (urls (cdr (assq 'urls entities)))
