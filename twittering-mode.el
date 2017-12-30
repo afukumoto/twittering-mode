@@ -6678,6 +6678,8 @@ get-service-configuration -- Get the configuration of the server.
 ;;;; Service configuration
 ;;;;
 
+(defconst twittering-max-weighted-tweet-length 280)
+
 (defconst twittering-service-configuration-default
   '((dm_text_character_limit . 10000)
     (short_url_length . 23)
@@ -6773,11 +6775,11 @@ get-service-configuration -- Get the configuration of the server.
   "Return the maximum message length of TWEET-TYPE.
 If TWEET-TYPE is a symbol `direct-message', return the value of the
  service configuration `dm_text_character_limit'.
-Otherwise, return 140."
+Otherwise, return twittering-max-weighted-tweet-length."
   (let ((max-length
 	 (if (eq tweet-type 'direct-message)
 	     (twittering-get-service-configuration 'dm_text_character_limit)
-	   140)))
+	   twittering-max-weighted-tweet-length)))
     max-length))
 
 ;;;;
@@ -10888,6 +10890,40 @@ entry in `twittering-edit-skeleton-alist' are performed."
     (define-key km (kbd "M-p") 'twittering-edit-previous-history)
     (define-key km (kbd "<f4>") 'twittering-edit-replace-at-point)))
 
+;; according to twitter-text/config/v2.json
+(defconst twittering-code-point-weight-scale 100)
+(defconst twittering-code-point-weight-default 200)
+
+(defconst twittering-code-point-weight-list
+  '((0 4351 100)
+    (8192 8205 100)
+    (8208 8223 100)
+    (8242 8247 100)))
+
+(defmacro twittering-code-point-weight-macro (ch)
+  `(let ((ch ,ch))
+     (cond
+      ,@(mapcar (lambda (r)
+		  `((and (<= ,(first r) ch)
+			 (<= ch ,(second r)))
+		    ,(third r)))
+		twittering-code-point-weight-list)
+      (t twittering-code-point-weight-default))))
+
+(defun twittering-code-point-weight (ch)
+  (twittering-code-point-weight-macro ch))
+
+;; (defun twittering-weighted-length (str)
+;;   (/ (apply #'+ (mapcar #'twittering-code-point-weight str))
+;;      twittering-code-point-weight-scale))
+
+(defun twittering-weighted-length (str)
+  (let ((sum 0))
+    (mapc (lambda (ch)
+	    (setq sum (+ sum (twittering-code-point-weight ch))))
+	  str)
+    (/ sum twittering-code-point-weight-scale)))
+
 (defun twittering-effective-length (str &optional short-length-http short-length-https)
   "Return the effective length of STR with taking account of shortening URIs.
 
@@ -10931,10 +10967,11 @@ instead."
 		   ;; automatically wraps all links submitted to
 		   ;; Twitter, regardless of length. This includes
 		   ;; so-called URLs without protocols.
-		   (+ (- beg pos) short-len)))
+		   (+ (twittering-weighted-length (substring str pos beg))
+		      short-len)))
 	      (setq len (+ len additional-length))
 	      (setq pos end)))))
-      (+ len (- (length str) pos))))
+      (+ len (twittering-weighted-length (substring str pos)))))
    (t
     (length str))))
 
@@ -10948,8 +10985,12 @@ instead."
     (force-mode-line-update)
     (unless twittering-disable-overlay-on-too-long-string
       (if (< maxlen length)
-	  (move-overlay twittering-warning-overlay
-			(- (point-max) (- length maxlen)) (point-max))
+	  (let ((pos (length status)))
+	    (while (< maxlen (twittering-effective-length (substring status 0 pos)))
+	      (setq pos (1- pos)))
+	    (move-overlay twittering-warning-overlay
+			  (- (point-max) (- (length status) pos))
+			  (point-max)))
 	(move-overlay twittering-warning-overlay 1 1)))))
 
 (defun twittering-edit-get-help-end ()
