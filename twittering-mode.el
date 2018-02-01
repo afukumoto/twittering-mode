@@ -2480,6 +2480,7 @@ The method to perform the request is determined from
 	    ("Expect" . "")))
 	 (curl-args
 	  `("--include" "--silent" "--compressed"
+	    "--output" "-"
 	    ,@(when use-http2 `("--http2"))
 	    ,@(apply 'append
 		     (mapcar
