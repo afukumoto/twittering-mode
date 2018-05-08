@@ -11791,19 +11791,19 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
 
 ;;;; Commands for browsing information related to a status
 
-(defun twittering-visit-uri (uri expanded-uri)
+(defun twittering-visit-uri (uri)
   "Visit URI.
 If the URI is a link to twitter.com, visit as a timeline.
 Otherwise use `browse-url'."
   (cond 
-   ((string-match "\\`https?://twitter\\.com/\\(?:#!/\\)?search\\?q=%23\\([^#]*\\)\\(?:#.*\\)?\\'" expanded-uri)
-    (twittering-visit-timeline `(search ,(concat "#" (twittering-percent-decode (match-string 1 expanded-uri))))))
-   ((string-match "\\`https?://twitter\\.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" expanded-uri)
-    (twittering-visit-timeline `(list ,(match-string 1 expanded-uri) ,(match-string 2 expanded-uri))))
-   ((string-match "\\`https?://\\(?:\\mobile\\.\\)?twitter\\.com/[^/]+/status/\\([0-9]+\\)\\(?:\\?.*\\)?\\(?:#.*\\)?\\'" expanded-uri)
-    (twittering-visit-timeline `(single ,(match-string 1 expanded-uri))))
-   ((string-match "\\`https?://twitter\\.com/\\([^][#/?]+\\)\\'" expanded-uri)
-    (twittering-visit-timeline (match-string 1 expanded-uri)))
+   ((string-match "\\`https?://twitter\\.com/\\(?:#!/\\)?search\\?q=%23\\([^#]*\\)\\(?:#.*\\)?\\'" uri)
+    (twittering-visit-timeline `(search ,(concat "#" (twittering-percent-decode (match-string 1 uri))))))
+   ((string-match "\\`https?://twitter\\.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" uri)
+    (twittering-visit-timeline `(list ,(match-string 1 uri) ,(match-string 2 uri))))
+   ((string-match "\\`https?://\\(?:\\mobile\\.\\)?twitter\\.com/[^/]+/status/\\([0-9]+\\)\\(?:\\?.*\\)?\\(?:#.*\\)?\\'" uri)
+    (twittering-visit-timeline `(single ,(match-string 1 uri))))
+   ((string-match "\\`https?://twitter\\.com/\\([^][#/?]+\\)\\'" uri)
+    (twittering-visit-timeline (match-string 1 uri)))
    (t
     (browse-url uri))))
 
@@ -11857,7 +11857,7 @@ Otherwise use `browse-url'."
       (twittering-update-status initial-str
 				id screen-name-in-text tweet-type))
      (uri
-      (twittering-visit-uri uri expanded-uri))
+      (twittering-visit-uri expanded-uri))
      (username
       (twittering-update-status initial-str id username tweet-type)))))
 
