@@ -452,6 +452,9 @@ Do not modify this variable directly. Use `twittering-activate-buffer',
   :type 'boolean
   :group 'twittering-mode)
 
+(defvar twittering-prefer-display-url t
+  "*If non-nil, use display-url in the displayed text.  Otherwise use expanded-url.")
+
 (defcustom twittering-status-format "%RT{%FACE[bold]{RT}}%i %s,  %@:\n%FOLD[  ]{%T // from %f%L%r%R%QT{\n+----\n%FOLD[|]{%i %s,  %@:\n%FOLD[  ]{%T // from %f%L%r%R}}\n+----}}\n "
   "Format string for rendering statuses.
 Ex. \"%i %s,  %@:\\n%FILL{  %T // from %f%L%r%R}\n \"
@@ -7999,7 +8002,9 @@ to JSON objects from ordinary timeline and search timeline."
 	 (urls (cdr (assq 'urls entities)))
 	 (hashtags (cdr (assq 'hashtags entities)))
 	 (mentions (cdr (assq 'user_mentions entities)))
-	 (media (cdr (assq 'media entities)))
+	 (extended-entities (cdr (assq 'extended_entities json-object)))
+	 (media (or (cdr (assq 'media extended-entities))
+		    (cdr (assq 'media entities))))
 	 (func
 	  (lambda (entry sym-table)
 	    (mapcar (lambda (sym-entry)
@@ -9376,6 +9381,68 @@ following symbols;
 	   (setq pos end)))
        str)))
 
+(defun twittering-remove-overlapping-entities (lst)
+  (let ((item1 (car lst))
+	(rest (cdr lst)))
+    (if rest
+	(let* ((item2 (car rest))
+	       (start1 (cdr (assq 'start item1)))
+	       (end1 (cdr (assq 'end item1)))
+	       (start2 (cdr (assq 'start item2)))
+	       (end2 (cdr (assq 'end item2))))
+	  (if (<= start2 end1)
+	      (twittering-remove-overlapping-entities (cons item1 (cdr rest)))
+	    (cons item1 (twittering-remove-overlapping-entities rest))))
+      lst)))
+
+(defun twittering-text-expand-urls (text url-info-list)
+  (let ((offset 0))
+    (mapc (lambda (url-info)
+	    (let* ((text-length (length text))
+		   (start (cdr (assq 'start url-info)))
+		   (end (cdr (assq 'end url-info)))
+		   (url (cdr (assq 'url url-info)))
+		   (expanded-url
+		    ;; If the `url' is short and not wrapped,
+		    ;; `expanded-url' is nil.
+		    (or (cdr (assq 'expanded-url url-info))
+			url))
+		   (display-url
+		    (or (if twittering-prefer-display-url
+			    (cdr (assq 'display-url url-info)))
+			expanded-url))
+		   (replacement
+		    (propertize
+		     display-url
+		     'mouse-face 'highlight
+		     'keymap twittering-mode-on-uri-map
+		     'uri url
+		     'uri-origin 'explicit-uri-in-tweet
+		     'expanded-uri expanded-url
+		     'face 'twittering-uri-face
+		     'front-sticky nil
+		     'rear-nonsticky t)))
+	      (setq text
+		    (concat
+		     (substring text 0 (min (+ offset start) text-length))
+		     replacement
+		     (substring text (min (+ offset end) text-length))))
+	      (setq offset
+		    (+ offset (- (length display-url) (- end start))))))
+	  url-info-list)
+    text))
+
+(defun twittering-status-text-expand-urls (status)
+  (let ((entities (cdr (assq 'entity status))))
+    (twittering-text-expand-urls (cdr (assq 'text status))
+				 (twittering-remove-overlapping-entities
+				  (sort
+				   (append (cdr (assq 'urls entities))
+					   (cdr (assq 'media entities)))
+				   (lambda (a b)
+				     (< (cdr (assq 'start a))
+					(cdr (assq 'start b)))))))))
+
 (eval-and-compile
   (defsubst twittering-make-fontified-tweet-text-with-entity (status)
     (let* ((text (copy-sequence (cdr (assq 'text status))))
@@ -9431,9 +9498,13 @@ following symbols;
 			;; `expanded-url' is nil.
 			(or (cdr (assq 'expanded-url url-info))
 			    url))
+		       (display-url
+			 (or (if twittering-prefer-display-url
+				 (cdr (assq 'display-url url-info)))
+			     expanded-url))
 		       (replacement
 			(propertize
-			 expanded-url
+			 display-url
 			 'mouse-face 'highlight
 			 'keymap twittering-mode-on-uri-map
 			 'uri url
@@ -9448,8 +9519,14 @@ following symbols;
 			 replacement
 			 (substring text (min (+ offset end) text-length))))
 		  (setq offset
-			(+ offset (- (length expanded-url) (- end start))))))
-	      (cdr (assq 'urls entities))))
+			(+ offset (- (length display-url) (- end start))))))
+	      (twittering-remove-overlapping-entities
+	       (sort
+		(append (cdr (assq 'urls entities))
+			(cdr (assq 'media entities)))
+		(lambda (a b)
+		  (< (cdr (assq 'start a))
+		     (cdr (assq 'start b))))))))
       text)))
 
 (defun twittering-generate-format-table (status-sym prefix-sym)
@@ -12386,7 +12463,7 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
   (let* ((id (twittering-get-id-at))
 	 (status (twittering-find-status id))
 	 (username (cdr (assq 'user-screen-name status)))
-	 (text (cdr (assq 'text status)))
+	 (text (twittering-status-text-expand-urls status))
 	 (retweet-time (current-time))
 	 (skeleton-with-format-string
 	  (cond
@@ -13059,7 +13136,8 @@ which fetch older tweets on reverse-mode."
 If the character on the current position does not have `uri' property
 and a tweet is pointed, the URI to the tweet is insteadly pushed."
   (interactive)
-  (let ((uri (or (get-text-property (point) 'uri)
+  (let ((uri (or (get-text-property (point) 'expanded-uri)
+		 (get-text-property (point) 'uri)
 		 (if (get-text-property (point) 'field)
 		     (let* ((id (get-text-property (point) 'id))
 			    (status (twittering-find-status id)))
