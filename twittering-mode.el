@@ -1718,6 +1718,9 @@ in \"hash format\". In detail, see verify(1SSL)."
   "Encode STR according to Percent-Encoding defined in RFC 3986."
   (twittering-oauth-url-encode str coding-system))
 
+(defun twittering-percent-decode (str &optional coding-system)
+  (twittering-oauth-url-decode str coding-system))
+
 (defun twittering-lookup-connection-type (use-ssl &optional order table)
   "Return available entry extracted fron connection type table.
 TABLE is connection type table, which is an alist of type symbol and its
@@ -5633,7 +5636,7 @@ The file is specified by `twittering-user-id-db-file'."
   "Extract the ID from URL-STRING.
 Return nil if URL-STRING cannot be interpreted as a URL pointing a tweet."
   (when (string-match
-	 "\\`https?://twitter.com/\\(?:#!/\\)?[^/]+/status\\(?:es\\)?/\\([0-9]+\\)/?\\'"
+	 "\\`https?://twitter\\.com/\\(?:#!/\\)?[^/]+/status\\(?:es\\)?/\\([0-9]+\\)/?\\'"
 	 url-string)
     (match-string 1 url-string)))
 
@@ -12472,6 +12475,22 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
 
 ;;;; Commands for browsing information related to a status
 
+(defun twittering-visit-uri (uri)
+  "Visit URI.
+If the URI is a link to twitter.com, visit as a timeline.
+Otherwise use `browse-url'."
+  (cond 
+   ((string-match "\\`https?://twitter\\.com/\\(?:#!/\\)?search\\?q=%23\\([^#]*\\)\\(?:#.*\\)?\\'" uri)
+    (twittering-visit-timeline `(search ,(concat "#" (twittering-percent-decode (match-string 1 uri))))))
+   ((string-match "\\`https?://twitter\\.com/\\([^/]+\\)/lists/\\([^/]+\\)\\'" uri)
+    (twittering-visit-timeline `(list ,(match-string 1 uri) ,(match-string 2 uri))))
+   ((string-match "\\`https?://\\(?:\\mobile\\.\\)?twitter\\.com/[^/]+/status/\\([0-9]+\\)\\(?:\\?.*\\)?\\(?:#.*\\)?\\'" uri)
+    (twittering-visit-timeline `(single ,(match-string 1 uri))))
+   ((string-match "\\`https?://twitter\\.com/\\([^][#/?]+\\)\\'" uri)
+    (twittering-visit-timeline (match-string 1 uri)))
+   (t
+    (browse-url uri))))
+
 (defun twittering-click ()
   (interactive)
   (let ((uri (get-text-property (point) 'uri)))
@@ -12483,6 +12502,8 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
   (let* ((username (get-text-property (point) 'username))
 	 (id (twittering-get-id-at (point)))
 	 (uri (get-text-property (point) 'uri))
+	 (goto-spec (get-text-property (point) 'goto-spec))
+	 (expanded-uri (or (get-text-property (point) 'expanded-uri) uri ""))
 	 (tweet-type
 	  (cond
 	   ((or
@@ -12517,11 +12538,13 @@ How to edit a tweet is determined by `twittering-update-status-funcion'."
 	    (twittering-goto-first-normal-field)
 	  (twittering-goto-last-normal-field))
 	(twittering-get-and-render-timeline nil oldest-id)))
+     (goto-spec
+      (twittering-visit-timeline goto-spec))
      (screen-name-in-text
       (twittering-update-status initial-str
 				id screen-name-in-text tweet-type))
      (uri
-      (browse-url uri))
+      (twittering-visit-uri expanded-uri))
      (username
       (twittering-update-status initial-str id username tweet-type)))))
 
